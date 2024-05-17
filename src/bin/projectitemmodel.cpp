@@ -24,6 +24,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "projectclip.h"
 #include "projectfolder.h"
 #include "projectsubclip.h"
+#include "sequenceclip.h"
 #include "utils/thumbnailcache.hpp"
 #include "xml/xml.hpp"
 
@@ -882,8 +883,17 @@ bool ProjectItemModel::requestAddBinClip(QString &id, const QDomElement &descrip
     }
     Q_ASSERT(isIdFree(id));
     QWriteLocker locker(&m_lock);
-    std::shared_ptr<ProjectClip> new_clip =
-        ProjectClip::construct(id, description, m_blankThumb, std::static_pointer_cast<ProjectItemModel>(shared_from_this()));
+    std::shared_ptr<ProjectClip> new_clip;
+
+    ClipType::ProducerType type = ClipType::Unknown;
+    if (description.hasAttribute(QStringLiteral("type"))) {
+        type = ClipType::ProducerType(description.attribute(QStringLiteral("type")).toInt());
+    }
+    if (type == ClipType::Timeline) {
+        new_clip = SequenceClip::construct(id, description, m_blankThumb, std::static_pointer_cast<ProjectItemModel>(shared_from_this()));
+    } else {
+        new_clip = ProjectClip::construct(id, description, m_blankThumb, std::static_pointer_cast<ProjectItemModel>(shared_from_this()));
+    }
     locker.unlock();
     bool res = addItem(new_clip, parentId, undo, redo);
     if (res) {
@@ -918,7 +928,23 @@ bool ProjectItemModel::requestAddBinClip(QString &id, std::shared_ptr<Mlt::Produ
         }
     }
     Q_ASSERT(isIdFree(id));
-    std::shared_ptr<ProjectClip> new_clip = ProjectClip::construct(id, m_blankThumb, std::static_pointer_cast<ProjectItemModel>(shared_from_this()), producer);
+    ClipType::ProducerType type = ClipType::Unknown;
+    QString producerService(producer->parent().get("mlt_service"));
+    if (producerService == QLatin1String("tractor") || producerService == QLatin1String("xml-string")) {
+        Mlt::Properties props(producer->get_properties());
+        if (props.property_exists("kdenlive:producer_type")) {
+            type = (ClipType::ProducerType)props.get_int("kdenlive:producer_type");
+        } else {
+            type = ClipType::Timeline;
+        }
+    }
+
+    std::shared_ptr<ProjectClip> new_clip;
+    if (type == ClipType::Timeline) {
+        new_clip = SequenceClip::construct(id, m_blankThumb, std::static_pointer_cast<ProjectItemModel>(shared_from_this()), producer);
+    } else {
+        new_clip = ProjectClip::construct(id, m_blankThumb, std::static_pointer_cast<ProjectItemModel>(shared_from_this()), producer);
+    }
     bool res = addItem(new_clip, parentId, undo, redo);
     if (res) {
         new_clip->importEffects(producer);
