@@ -77,6 +77,7 @@ public:
 
     /** @brief Returns this clip's producer. */
     virtual std::unique_ptr<Mlt::Producer> getThumbProducer() = 0;
+    virtual void setThumbFrame(int frame) = 0;
 
     virtual void reloadProducer(bool refreshOnly = false, bool isProxy = false, bool forceAudioReload = false) = 0;
 

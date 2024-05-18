@@ -277,3 +277,10 @@ const QUuid SequenceClip::getSequenceUuid() const
 {
     return m_sequenceUuid;
 }
+
+void SequenceClip::setThumbFrame(int frame)
+{
+    resetSequenceThumbnails();
+    pCore->currentDoc()->setSequenceProperty(m_sequenceUuid, QStringLiteral("thumbnailFrame"), frame);
+    ClipLoadTask::start(ObjectId(KdenliveObjectType::BinClip, m_binId.toInt(), QUuid()), QDomElement(), true, -1, -1, this);
+}
